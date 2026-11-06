@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Core Libraries -->
+  <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  
+  <!-- Enterprise Iconography (Lucide) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* --- Enterprise SaaS Theme Variables --- */
+    :root { 
+      --bg-blur: <?= bgBlur ?>px; 
+      --bg-opacity: <?= bgOpacity ?>; 
+      --sidebar-width: 260px;
+      --primary: #0f172a; 
+      --secondary: #334155;
+      --brand-red: #dc2626; 
+      --brand-red-hover: #b91c1c;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --surface: #ffffff;
+      --background-base: #f8fafc;
+      --border: rgba(15, 23, 42, 0.1);
+    }
+    
+    body {
+      margin: 0; padding: 0; font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+      background-color: var(--background-base);
+      background-image: url('<?= bgUrl ?>');
+      background-size: cover; background-position: center; background-attachment: fixed;
+      color: #333; height: 100vh; overflow: hidden;
+    }
+    
+    /* --- Modern App Layout (SPA Edge-to-Edge) --- */
+    .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+
+    /* --- Sidebar --- */
+    .sidebar {
+      width: var(--sidebar-width); min-width: var(--sidebar-width); height: 100vh;
+      background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+      border-right: 1px solid var(--border); box-shadow: 4px 0 15px rgba(0, 0, 0, 0.02);
+      transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); display: flex; flex-direction: column; z-index: 100;
+    }
+    .sidebar.collapsed { width: 0; min-width: 0; border-right: none; padding-left: 0; padding-right: 0; opacity: 0; pointer-events: none; }
+    .sidebar-header { padding: 25px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+    .logo { color: var(--primary); font-size: 1.4em; font-weight: 800; margin: 0; white-space: nowrap; display: flex; align-items: center; gap: 10px; }
+    
+    .nav-links { display: flex; flex-direction: column; padding: 15px 10px; gap: 5px; overflow-y: auto; flex-grow: 1; }
+    .nav-btn {
+      padding: 12px 15px; background: transparent; border: none; border-radius: 8px;
+      color: var(--secondary); font-weight: 600; font-size: 0.95em; text-align: left;
+      cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 12px;
+      white-space: nowrap;
+    }
+    .nav-btn:hover { background: rgba(15, 23, 42, 0.05); color: var(--primary); }
+    .nav-btn.active { background: var(--primary); color: #fff; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.15); }
+    .nav-btn i { width: 18px; height: 18px; }
+
+    /* --- Main Content Area --- */
+    .main-content { flex-grow: 1; height: 100vh; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+    .floating-hamburger {
+      position: absolute; top: 15px; left: 15px; z-index: 101;
+      background: var(--surface); backdrop-filter: blur(10px);
+      border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
+      cursor: pointer; color: var(--primary); font-size: 1.2em;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: 0.3s;
+    }
+    .floating-hamburger:hover { background: #f1f5f9; }
+    .sidebar:not(.collapsed) ~ .main-content .floating-hamburger { display: none; }
+
+    .main-page { display: none; width: 100%; height: 100%; animation: fadeIn 0.3s ease-out; position: relative; }
+    .main-page.active-page { display: block; }
+    .padded-page { padding: 40px; overflow-y: auto; }
+    @media (max-width: 768px) { .padded-page { padding: 60px 20px 20px 20px; } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* --- SaaS Panels --- */
+    .glass-panel {
+      background: rgba(255, 255, 255, var(--bg-opacity)); 
+      backdrop-filter: blur(var(--bg-blur)); -webkit-backdrop-filter: blur(var(--bg-blur));
+      border: 1px solid var(--border); border-radius: 12px; padding: 30px; 
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); margin-bottom: 25px;
+    }
+    .page-title { color: var(--primary); margin-top: 0; font-size: 1.4em; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between; }
+    
+    /* --- Controls & Forms --- */
+    .sub-nav { display: flex; gap: 8px; margin-bottom: 25px; padding: 6px; background: rgba(15,23,42,0.03); border-radius: 10px; border: 1px solid var(--border); flex-wrap: wrap; }
+    .sub-nav-btn { padding: 10px 18px; background: transparent; border: none; color: var(--secondary); border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+    .sub-nav-btn:hover { background: rgba(15,23,42,0.05); }
+    .sub-nav-btn.active { background: #fff; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .tab-content { display: none; animation: fadeIn 0.3s; }
+    .tab-content.active { display: block; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
+    .full-width { grid-column: 1 / -1; }
+    .form-group { margin-bottom: 15px; }
+    label { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 8px; color: var(--secondary); font-size: 0.9em; }
+    input:not([type="checkbox"]):not([type="file"]), textarea, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); box-sizing: border-box; font-family: inherit; font-size: 0.95em; transition: 0.2s; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1); }
+    input[readonly] { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+    input[type="file"] { width: 100%; padding: 10px; background: var(--surface); border: 1px dashed var(--border); border-radius: 8px; }
+    
+    button.btn { width: 100%; padding: 14px; margin-top: 25px; border: none; border-radius: 8px; font-size: 1.05em; font-weight: 600; cursor: pointer; transition: 0.2s; color: white; display: flex; justify-content: center; align-items: center; gap: 10px; }
+    .btn-primary { background: var(--primary); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
+    .btn-primary:hover { background: #1e293b; transform: translateY(-1px); }
+    .btn-secondary { background: var(--surface); color: var(--primary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #f1f5f9; }
+    .btn-danger { background: var(--brand-red); color: white; }
+
+    /* --- KPIs & Charts --- */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; align-items: center; position: relative; z-index: 100; }
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 8px; padding: 25px 20px; text-align: left; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+    .kpi-value { font-size: 2.2em; font-weight: 800; color: var(--primary); margin: 5px 0; }
+    .kpi-label { color: var(--secondary); font-size: 0.9em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-subtext { color: #64748b; font-size: 0.85em; margin-top: 5px; display: inline-block; padding: 3px 8px; background: #f1f5f9; border-radius: 4px; }
+    
+    .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .chart-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; min-height: 300px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+    .chart-panel-title { font-weight: 600; color: var(--primary); margin-bottom: 15px; font-size: 1.1em; border-bottom: 1px solid var(--border); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: var(--surface); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+    th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background-color: #f8fafc; color: var(--secondary); font-size: 0.9em; font-weight: 700; text-transform: uppercase; }
+    .dataTables_wrapper { background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); width: 100%; overflow-x: auto; }
+    .dt-buttons .dt-button { background: var(--surface) !important; color: var(--primary) !important; border: 1px solid var(--border) !important; border-radius: 6px; font-weight: 600; padding: 6px 12px; }
+    
+    /* Iframes */
+    .iframe-wrapper { width: 100%; height: 100%; position: relative; background: var(--surface); }
+    .iframe-wrapper iframe { width: 100%; height: 100%; border: none; display: block; position: relative; z-index: 2; }
+    .iframe-actions { position: absolute; top: 15px; right: 25px; z-index: 50; display: flex; gap: 10px; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); padding: 5px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .iframe-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--secondary); font-weight: 600; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* Toast Notifications */
+    #toastContainer { position: fixed; bottom: 30px; right: 30px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; }
+    .toast { background: var(--primary); color: white; padding: 14px 24px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); font-weight: 500; display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); transition: opacity 0.3s; }
+    .toast.toast-error { background: var(--brand-red); }
+    .toast.toast-success { background: var(--success); }
+    .toast.fade-out { opacity: 0; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* Custom Modal */
+    #customModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(5px); z-index: 10001; justify-content: center; align-items: center; }
+    .modal-content { background: var(--surface); padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+    .modal-actions { display: flex; gap: 15px; margin-top: 25px; justify-content: center; }
+
+    /* Login Screen - Transparent */
+    #loginScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(248, 250, 252, 0.15); backdrop-filter: blur(var(--bg-blur)); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div id="toastContainer"></div>
+
+<div id="customModal">
+  <div class="modal-content">
+    <i data-lucide="alert-triangle" style="width: 48px; height: 48px; color: var(--brand-red); margin-bottom: 15px;"></i>
+    <h3 style="margin-top: 0; color: var(--primary);">Confirm Action</h3>
+    <p id="modalMessage" style="color: var(--secondary);">Are you sure you want to proceed?</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()" style="margin-top: 0; width: auto;">Cancel</button>
+      <button class="btn btn-danger" id="modalConfirmBtn" style="margin-top: 0; width: auto;">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<? if (isReview) { ?>
+  <div style="max-width: 600px; margin: 80px auto; padding: 0 20px;">
+    <div class="glass-panel" id="reviewPanel">
+      <h2 style="color:var(--primary); text-align:center;"><i data-lucide="file-check"></i> Action Plan Review</h2>
+      <div id="reviewDetails" style="margin: 20px 0; background: #f8fafc; padding: 20px; border-radius: 10px; border: 1px solid var(--border); line-height: 1.6;">
+        <div style="display:flex; justify-content:center; align-items:center; height: 100px;">
+          <i data-lucide="loader-2" class="spin"></i> Loading details...
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i data-lucide="message-square"></i> Agent Comments / Action Plan Notes</label>
+        <textarea id="agentComments" rows="4" placeholder="Enter your insights, acknowledgment notes, or reason for dispute..."></textarea>
+      </div>
+      <div style="display:flex; gap: 15px; flex-wrap: wrap;">
+        <button class="btn btn-primary" style="background: var(--success);" onclick="submitReview('Acknowledged')"><i data-lucide="check-circle"></i> Acknowledge</button>
+        <button class="btn btn-secondary" style="color: var(--warning); border-color: var(--warning);" onclick="submitReview('Disputed')"><i data-lucide="alert-circle"></i> Dispute / Request 1-on-1</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const recordId = "<?= reviewId ?>";
+    lucide.createIcons();
+    window.onload = function() {
+      google.script.run.withSuccessHandler(function(data) {
+        document.getElementById('reviewDetails').innerHTML = `
+          <p><b>Date Logged:</b> ${data.date}</p>
+          <p><b>Moderator:</b> ${data.moderator}</p>
+          <p><b>Category/Focus:</b> ${data.behavior}</p>
+          <p style="white-space: pre-wrap;"><b>Plan / Details:</b><br>${data.actionPlan}</p>
+        `;
+      }).withFailureHandler(e => showToast(e.message, 'error')).getCoachingDetails(recordId);
+    };
+
+    function submitReview(status) {
+      const comments = document.getElementById('agentComments').value;
+      if(status === 'Disputed' && !comments) return showToast("Please provide a reason for dispute.", 'error');
+      document.getElementById('reviewPanel').innerHTML = `<div style="text-align:center; padding: 40px;"><i data-lucide="loader-2" class="spin" style="width:40px; height:40px; color:var(--primary);"></i><h3 style="margin-top:20px;">Processing your response...</h3></div>`;
+      lucide.createIcons();
+      google.script.run.withSuccessHandler(function(res) {
+        document.getElementById('reviewPanel').innerHTML = `<div style="text-align:center; padding: 40px;"><i data-lucide="check-circle" style="width:50px; height:50px; color:var(--success);"></i><h2 style="color:var(--success); margin-top:20px;">${res}</h2><p>Your manager and moderator have been notified.</p></div>`;
+        lucide.createIcons();
+      }).withFailureHandler(e => showToast(e.message, 'error')).processAgentReview(recordId, status, comments);
+    }
+  </script>
+
+<? } else { ?>
+
+  <div id="loginScreen">
+    <div class="glass-panel" style="max-width: 450px; text-align: center;">
+      <i data-lucide="shield-check" style="width: 50px; height: 50px; color: var(--brand-red); margin-bottom: 15px;"></i>
+      <h1 style="color: var(--primary); margin-top: 0; font-size: 2.2em;">Newsbreak Hub</h1>
+      <p style="color: var(--secondary); font-size: 1.1em;">Authenticating Google Workspace...</p>
+      
+      <div id="loginDetails" style="margin-top: 30px; display: none;">
+        <div style="background: #f1f5f9; border: 1px solid var(--border); padding: 15px; border-radius: 10px; margin-bottom: 25px;">
+          <p style="margin: 0; font-size: 0.9em; color: var(--secondary); font-weight: bold;">Logged in Securely as:</p>
+          <p id="userEmailDisplay" style="margin: 5px 0 0 0; font-size: 1.1em; color: var(--primary);"></p>
+        </div>
+        <button class="btn btn-primary" onclick="enterApp()">Launch Workspace <i data-lucide="arrow-right"></i></button>
+      </div>
+      <div id="loginLoader" style="color: var(--primary); font-weight: bold; margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <i data-lucide="loader-2" class="spin"></i> Fetching Profile...
+      </div>
+    </div>
+  </div>
+
+  <div id="mainApp" style="display:none;" class="app-container">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo"><i data-lucide="layout-dashboard" style="color: var(--brand-red);"></i> NB Hub</div>
+        <button class="sub-nav-btn" style="padding: 5px 10px; margin: 0; border: none;" onclick="toggleNav()"><i data-lucide="panel-left-close"></i></button>
+      </div>
+      <div class="nav-links">
+        <button class="nav-btn" id="nav-home" onclick="switchMainPage('page-home', this)"><i data-lucide="home"></i> iCollect</button>
+        <button class="nav-btn active" id="nav-tns" onclick="switchMainPage('page-tns', this)"><i data-lucide="shield"></i> Trust & Safety</button>
+        <button class="nav-btn" id="nav-coaching" onclick="switchMainPage('page-coaching', this)"><i data-lucide="graduation-cap"></i> Coaching</button>
+        <button class="nav-btn" id="nav-operations" onclick="switchMainPage('page-operations', this)"><i data-lucide="bar-chart-2"></i> Operations</button>
+        <button class="nav-btn" id="nav-training" onclick="switchMainPage('page-training', this)"><i data-lucide="book-open"></i> Policy Calibrations</button>
+        <button class="nav-btn" id="nav-scorecard" onclick="switchMainPage('page-scorecard', this)"><i data-lucide="target"></i> Scorecard</button>
+        <button class="nav-btn" id="nav-comments" onclick="switchMainPage('page-comments', this)"><i data-lucide="message-circle"></i> Comments</button>
+        <button class="nav-btn" id="nav-links" onclick="switchMainPage('page-links', this)"><i data-lucide="link"></i> Useful Links</button>
+        <button class="nav-btn" id="nav-lounge" onclick="switchMainPage('page-lounge', this)"><i data-lucide="coffee"></i> Lounge</button>
+        <button class="nav-btn" id="nav-focus" onclick="switchMainPage('page-focus', this)"><i data-lucide="users"></i> Friendster</button>
+        <button class="nav-btn" id="nav-gallery" onclick="switchMainPage('page-gallery', this)"><i data-lucide="image"></i> ARBOT</button>
+        <button class="nav-btn" id="nav-performance" onclick="switchMainPage('page-performance', this)"><i data-lucide="check-square"></i> My Performance</button>
+        <button class="nav-btn" id="nav-snippets" onclick="switchMainPage('page-snippets', this)"><i data-lucide="code"></i> Snippets</button>
+        <button class="nav-btn" id="nav-article" onclick="switchMainPage('page-article', this)"><i data-lucide="file-text"></i> Article Moderation</button>
+        <button class="nav-btn" id="nav-team" onclick="switchMainPage('page-team', this)"><i data-lucide="users"></i> Soon to Open</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <button class="floating-hamburger" onclick="toggleNav()"><i data-lucide="menu"></i></button>
+
+      <!-- 0. HOME PAGE -->
+      <div id="page-home" class="main-page padded-page">
+        <div class="glass-panel">
+          <h2 class="page-title"><span style="display:flex; align-items:center; gap:10px;"><i data-lucide="megaphone"></i> Company Announcements</span></h2>
+          <div style="margin-bottom: 40px;">
+            <div id="adminAnnouncementControls" style="display:none; background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px dashed var(--border);">
+              <label><i data-lucide="plus-circle"></i> Create New Post</label>
+              <div style="display: flex; gap: 15px; margin-top: 10px;">
+                <input type="text" id="newAnnounceImg" placeholder="Image URL..." style="flex: 1;">
+                <input type="text" id="newAnnounceText" placeholder="Caption (Optional)..." style="flex: 1;">
+                <button class="btn btn-primary" style="width: auto; margin:0; padding: 0 20px;" onclick="addAnnouncement()"><i data-lucide="send"></i> Post</button>
+              </div>
+            </div>
+            <div id="announcementGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 30px;">
+              <div style="display:flex; gap:10px; color:var(--secondary);"><i data-lucide="loader-2" class="spin"></i> Fetching updates...</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 40px;">
+            <h2 class="page-title"><span style="display:flex; align-items:center; gap:10px;"><i data-lucide="award"></i> Top Performers</span></h2>
+            <div id="topModsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+              <div style="display:flex; gap:10px; color:var(--secondary);"><i data-lucide="loader-2" class="spin"></i> Computing rankings...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. TRUST & SAFETY DASHBOARD PAGE -->
+      <div id="page-tns" class="main-page active-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('tnsIframe').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('tnsIframe').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Workspace...</p></div>
+          <iframe id="tnsIframe" src="https://script.google.com/a/macros/iopex.com/s/AKfycbzx8iUHPEvIhy7SuG9ck-HP3Ryz7S5XyDWUxShDrZm-XEylO3YDvc1qbGUUTHgidtVvQA/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <!-- 2. COACHING PAGE -->
+      <div id="page-coaching" class="main-page padded-page">
+        <div class="glass-panel">
+          <h2 class="page-title">Coaching & Compliance Center</h2>
+          
+          <div class="sub-nav">
+            <button class="sub-nav-btn active" onclick="switchSubTab('formTab', this)"><i data-lucide="pen-tool"></i> Action Plan</button>
+            <button class="sub-nav-btn" onclick="switchSubTab('scorecardTab', this)"><i data-lucide="line-chart"></i> Scorecard Coaching</button>
+            <button class="sub-nav-btn" onclick="switchSubTab('goalTab', this)"><i data-lucide="target"></i> Goal Setting</button>
+            <button class="sub-nav-btn" onclick="switchSubTab('historyTab', this)"><i data-lucide="history"></i> Agent History</button>
+            <button class="sub-nav-btn" onclick="switchSubTab('reportTab', this)"><i data-lucide="clipboard-check"></i> Compliance</button>
+            <button class="sub-nav-btn" id="adminTabBtn" onclick="switchSubTab('adminTab', this)" style="display:none;"><i data-lucide="settings"></i> Admin</button>
+          </div>
+
+          <!-- TAB: Action Plan -->
+          <div id="formTab" class="tab-content active">
+            <div id="formContainer">
+              <form id="coachingForm" onsubmit="submitForm(event)">
+                <div class="form-grid">
+                  <div class="form-group full-width" style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
+                    <label style="color: var(--primary);"><i data-lucide="calendar-clock"></i> Date & Time Coaching Took Place</label>
+                    <input type="datetime-local" name="coachingDateTime" required>
+                  </div>
+                  <div class="form-group">
+                    <label><i data-lucide="user"></i> Agent Selection</label>
+                    <select name="empNumber" id="empNumberSelect" required onchange="onEmployeeChange('empNumberSelect', 'agentEmailDisplay')"><option>Loading...</option></select>
+                  </div>
+                  <div class="form-group"><label><i data-lucide="mail"></i> Agent Email (Auto-populated)</label><input type="email" id="agentEmailDisplay" readonly></div>
+                  <div class="form-group full-width"><label><i data-lucide="mail-plus"></i> Manager Email (CC)</label><input type="email" name="managerEmail" required></div>
+                  
+                  <div class="form-group full-width">
+                    <label><i data-lucide="target"></i> Behavior / Opportunity Area</label>
+                    <select name="behavior" required>
+                      <option value="">Select Primary KPI...</option>
+                      <option value="Attendance/Adherance">Attendance/Adherance</option>
+                      <option value="Quality Assurance (Accuracy)">Quality Assurance (Accuracy)</option>
+                      <option value="Client Escalation/Fatal Opportunities">Client Escalation/Fatal Opportunities</option>
+                      <option value="Productivity - Average Review Time">Productivity - Average Review Time</option>
+                      <option value="Weekly Performance Review">Weekly Performance Review</option>
+                      <option value="Monthly Performance Review">Monthly Performance Review</option>
+                      <option value="Kudos">Kudos</option>
+                      <option value="Spot Check">Spot Check</option>
+                      <option value="Code of Conduct Violation">Code of Conduct Violation</option>
+                      <option value="Others">Others</option>
+                    </select>
+                  </div>
+                  <div class="form-group full-width"><label>Root Cause Analysis (RCA)</label><input type="text" name="rca" required></div>
+                  <div class="form-group"><label>Baseline Data</label><input type="text" name="baseline" required></div>
+                  <div class="form-group"><label>Target Goal</label><input type="text" name="target" required></div>
+                  <div class="form-group full-width"><label>Action Plan</label><textarea name="actionPlan" rows="3" required></textarea></div>
+                  <div class="form-group full-width"><label>Support Provided</label><textarea name="support" rows="2" required></textarea></div>
+                  <div class="form-group full-width"><label><i data-lucide="paperclip"></i> Attachment (Optional)</label><input type="file" id="attachmentInput" accept="image/*,.pdf,.doc,.docx"></div>
+                  <div class="form-group full-width">
+                    <label><i data-lucide="calendar-plus"></i> Follow-Up Date & Time (Generates Calendar Invite)</label>
+                    <input type="datetime-local" name="timeline" required>
+                  </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.85em; color:var(--secondary);"><i data-lucide="save" style="width:14px; height:14px;"></i> Draft auto-saves as you type</span>
+                  <button type="submit" class="btn btn-primary" id="submitBtn" style="width: auto; padding: 14px 40px;"><i data-lucide="send"></i> Submit Assessment</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- TAB: Scorecard Coaching -->
+          <div id="scorecardTab" class="tab-content">
+            <div id="scorecardFormContainer">
+              <form id="scorecardForm" onsubmit="submitScorecard(event)">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label><i data-lucide="user"></i> Agent Selection</label>
+                    <select id="scEmpSelect" required onchange="updateScorecardMetrics()"><option>Loading...</option></select>
+                  </div>
+                  <div class="form-group"><label><i data-lucide="mail"></i> Agent Email (Auto-populated)</label><input type="email" id="scAgentEmail" readonly></div>
+                  <div class="form-group full-width"><label><i data-lucide="mail-plus"></i> Manager Email (CC)</label><input type="email" id="scManagerEmail" required></div>
+                  
+                  <div class="form-group full-width" style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
+                    <label style="color: var(--primary);"><i data-lucide="calendar"></i> Performance Period (Month/Year)</label>
+                    <input type="month" id="scMonthYear" required onchange="updateScorecardMetrics()" oninput="updateScorecardMetrics()">
+                  </div>
+
+                  <div class="form-group"><label>Volume Handled (Auto-Filled from Server Data)</label><input type="text" id="scProd" readonly></div>
+                  <div class="form-group"><label>Accuracy % (Auto-Filled)</label><input type="text" id="scAcc" readonly></div>
+                  <div class="form-group full-width"><label>Average Review Time (Auto-Filled)</label><input type="text" id="scRev" readonly></div>
+                  
+                  <div class="form-group full-width"><label>Moderator Notes / Comments</label><textarea id="scNotes" rows="3" placeholder="Add specific feedback or praise..."></textarea></div>
+                </div>
+                <div style="text-align: right; margin-top: 15px;">
+                  <button type="submit" class="btn btn-primary" id="scSubmitBtn" style="width: auto; padding: 14px 40px; display:inline-flex;"><i data-lucide="send"></i> Dispatch Scorecard</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- TAB: Goal Setting -->
+          <div id="goalTab" class="tab-content">
+            <div id="goalFormContainer">
+              <form id="goalForm" onsubmit="submitGoal(event)">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label><i data-lucide="user"></i> Agent Selection</label>
+                    <select id="gsEmpSelect" required onchange="onEmployeeChange('gsEmpSelect', 'gsAgentEmail')"><option>Loading...</option></select>
+                  </div>
+                  <div class="form-group"><label><i data-lucide="mail"></i> Agent Email (Auto-populated)</label><input type="email" id="gsAgentEmail" readonly></div>
+                  <div class="form-group full-width"><label><i data-lucide="mail-plus"></i> Manager Email (CC)</label><input type="email" id="gsManagerEmail" required></div>
+                  
+                  <div class="form-group full-width" style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid var(--border);">
+                    <label style="color: var(--primary);"><i data-lucide="target"></i> Target Period (Month/Year)</label>
+                    <input type="month" id="gsMonthYear" required>
+                  </div>
+
+                  <div class="form-group"><label>Accuracy Target</label><input type="text" id="gsAcc" placeholder="e.g. 98%" required></div>
+                  <div class="form-group"><label>Productivity Target</label><input type="text" id="gsProd" placeholder="e.g. 150/day" required></div>
+                  <div class="form-group"><label>Average Review Time Target</label><input type="text" id="gsRev" placeholder="e.g. < 60s" required></div>
+                  <div class="form-group"><label>Attendance Target</label><input type="text" id="gsAtt" placeholder="e.g. 100%" required></div>
+                  <div class="form-group"><label>PKT Target</label><input type="text" id="gsPkt" placeholder="e.g. 95%" required></div>
+                  <div class="form-group"><label>Client Escalation Target</label><input type="text" id="gsEsc" placeholder="e.g. 0" required></div>
+                  
+                  <div class="form-group full-width"><label>Additional Notes / Other Metrics</label><textarea id="gsNotes" rows="3" placeholder="If there are other specific metric goals, list them here..."></textarea></div>
+                </div>
+                <div style="text-align: right; margin-top: 15px;">
+                  <button type="submit" class="btn btn-primary" id="gsSubmitBtn" style="width: auto; padding: 14px 40px; display:inline-flex;"><i data-lucide="send"></i> Dispatch Goals</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Loading & Success Overlays for Coaching Tabs -->
+          <div id="loader" style="display:none; text-align:center; font-weight:bold; margin-top: 20px; color:var(--primary); padding: 40px;"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Processing emails and saving log...</p></div>
+          <div id="successMessage" style="display:none; text-align:center; padding: 40px 20px;">
+            <i data-lucide="check-circle" style="width: 60px; height: 60px; color: var(--success); margin-bottom: 20px;"></i>
+            <h2 style="color:var(--success); margin-bottom: 10px;" id="successText">Success!</h2>
+            <p style="color: var(--secondary); font-size: 1.1em;">Manager and agent notified via email.</p>
+            <button class="btn btn-secondary" onclick="resetAllForms()" style="width: auto; padding: 12px 30px; margin-top: 25px;"><i data-lucide="plus"></i> Log Another</button>
+          </div>
+
+          <!-- TAB: History -->
+          <div id="historyTab" class="tab-content">
+            <div class="form-group">
+              <label><i data-lucide="search"></i> Select Agent to View History</label>
+              <select id="historyEmpSelect" onchange="loadHistory()"><option value="">Select Employee...</option></select>
+            </div>
+            <div style="overflow-x: auto;">
+              <table>
+                <thead><tr><th>Date</th><th>Moderator</th><th>Category / Focus</th><th>Status</th></tr></thead>
+                <tbody id="historyTableBody"><tr><td colspan="4" style="text-align:center;">Select an agent above.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- TAB: Compliance -->
+          <div id="reportTab" class="tab-content">
+            <h3 style="color: var(--success); display:flex; align-items:center; gap:10px;"><i data-lucide="shield-check"></i> Compliant (8+ Logs)</h3>
+            <div style="overflow-x: auto;"><table><tbody id="cBody"></tbody></table></div>
+            
+            <h3 style="color: var(--brand-red); margin-top: 30px; display:flex; align-items:center; gap:10px;"><i data-lucide="shield-alert"></i> Action Required (< 8 Logs)</h3>
+            <div style="overflow-x: auto;"><table><tbody id="ncBody"></tbody></table></div>
+            
+            <div id="superAdminUncoachedWrapper" style="display:none;">
+              <h3 style="color: var(--warning); margin-top: 30px; display:flex; align-items:center; gap:10px;"><i data-lucide="users"></i> Agents Needing Coaching (0 Logs This Week)</h3>
+              <div style="background: var(--surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 8px;" id="uncoachedBody"></div>
+            </div>
+          </div>
+
+          <!-- TAB: Admin -->
+          <div id="adminTab" class="tab-content">
+            <div style="background: rgba(220, 38, 38, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(220, 38, 38, 0.2); margin-bottom: 25px;">
+              <p style="color: var(--brand-red); font-weight: bold; margin: 0; display:flex; align-items:center; gap:10px;"><i data-lucide="lock"></i> Access Level: Super Admin Authorized</p>
+            </div>
+            <div class="form-group full-width" style="margin-bottom: 30px;">
+              <label>Background Image/GIF URL</label>
+              <div style="display:flex; gap:15px;">
+                <input type="text" id="bgUrlInput" placeholder="https://..." style="flex:1;">
+                <button class="btn btn-secondary" onclick="applyUrlBg()" style="width: auto; margin:0;"><i data-lucide="image"></i> Apply</button>
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label>Glass Blur Intensity (<span id="blurVal"></span>px)</label>
+              <input type="range" id="blurSlider" class="slider" min="0" max="30" oninput="updateLivePreview()">
+            </div>
+            <div class="form-group full-width">
+              <label>Glass Opacity (<span id="opVal"></span>)</label>
+              <input type="range" id="opSlider" class="slider" min="0" max="1" step="0.05" oninput="updateLivePreview()">
+            </div>
+            <button class="btn btn-primary" onclick="saveAdmin()"><i data-lucide="save"></i> Save Visual Settings</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. OPERATIONS PAGE -->
+      <div id="page-operations" class="main-page padded-page">
+        <div class="glass-panel">
+          <div class="page-title">
+            <span style="display:flex; align-items:center; gap:10px;"><i data-lucide="activity"></i> Moderator Operations Data</span>
+            <button class="sub-nav-btn" onclick="forceRefreshData()" style="margin:0;"><i data-lucide="refresh-cw"></i> Sync Data</button>
+          </div>
+          
+          <div class="filter-bar">
+            <div class="multi-select" id="ms-date">
+              <div class="select-box" onclick="toggleMulti('filterDateBoxes', event)">
+                <span id="label-date"><i data-lucide="calendar"></i> All Dates</span><i data-lucide="chevron-down"></i>
+              </div>
+              <div class="checkboxes" id="filterDateBoxes"></div>
+            </div>
+            <div class="multi-select" id="ms-lob">
+              <div class="select-box" onclick="toggleMulti('filterLOBBoxes', event)">
+                <span id="label-lob"><i data-lucide="layers"></i> All LOBs</span><i data-lucide="chevron-down"></i>
+              </div>
+              <div class="checkboxes" id="filterLOBBoxes"></div>
+            </div>
+            <div style="flex:1; min-width:200px; display:flex; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:0 10px;">
+              <i data-lucide="search" style="color:var(--secondary);"></i>
+              <select id="filterAgent" onchange="debouncedApplyFilters()" style="border:none; box-shadow:none; padding:12px; flex:1;"><option value="ALL">Loading Agents...</option></select>
+            </div>
+          </div>
+          
+          <div class="dash-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Total Volume Handled</div>
+              <div class="kpi-value" id="kpi-handled">--</div>
+              <div class="kpi-subtext">Selected Data Range</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Average Accuracy</div>
+              <div class="kpi-value" id="kpi-accuracy">--%</div>
+              <div class="kpi-subtext">Quality Score MTD</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Efficiency Score</div>
+              <div class="kpi-value" id="kpi-efficiency">--%</div>
+              <div class="kpi-subtext">Target Goal Attainment</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Avg Review Time</div>
+              <div class="kpi-value" id="kpi-revtime" style="color: var(--success);">00:00:00</div>
+              <div class="kpi-subtext" style="background:#d1fae5; color:#065f46;">Per Selected Filter</div>
+            </div>
+          </div>
+          
+          <div class="chart-grid">
+            <div class="chart-panel">
+              <div class="chart-panel-title">Volume vs. Accuracy Trends <i data-lucide="trending-up" style="color:var(--secondary);"></i></div>
+              <div id="comboChartDiv" style="height: 300px; display:flex; align-items:center; justify-content:center; color:var(--secondary);"><i data-lucide="loader-2" class="spin"></i></div>
+            </div>
+            <div class="chart-panel">
+              <div class="chart-panel-title">LOB / Role Distribution <i data-lucide="pie-chart" style="color:var(--secondary);"></i></div>
+              <div id="donutChartDiv" style="height: 300px; display:flex; align-items:center; justify-content:center; color:var(--secondary);"><i data-lucide="loader-2" class="spin"></i></div>
+            </div>
+          </div>
+          
+          <div class="chart-panel" style="margin-top: 20px;">
+            <div class="chart-panel-title">Performance Roster <i data-lucide="users" style="color:var(--secondary);"></i></div>
+            <table id="performanceDataTable" class="display" style="width:100%">
+              <thead><tr><th>Agent Name</th><th>Accuracy Score (%)</th><th>Avg Review Time</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. TRAINING & DEVELOPMENT PAGE -->
+      <div id="page-training" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-training').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-training').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Training...</p></div>
+          <!-- INSERT YOUR LINK IN THE SRC ATTRIBUTE BELOW -->
+          <iframe id="iframe-training" src="https://script.google.com/a/macros/iopex.com/s/AKfycby69XuDhiCWtIvRbUK1x5TO5p90D2XpZQ5rPwn6LVFP0oe5RFw-r2BWd2vHYDPwvjrt/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <!-- IFRAMES -->
+      <div id="page-scorecard" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-scorecard').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-scorecard').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Scorecard...</p></div>
+          <iframe id="iframe-scorecard" src="https://script.google.com/a/macros/iopex.com/s/AKfycbw0v0-AdznY7pI10xyMZUQLhWGorXP-Esw62JYHkh6Djbb9br6qXvsn6WqF40lHxchn0g/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <div id="page-comments" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-comments').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-comments').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Comments...</p></div>
+          <iframe id="iframe-comments" src="https://script.google.com/a/macros/iopex.com/s/AKfycbwbM22jIcqa3w_1hOJctMQaWksEXMPh4jhz9rfRs-bZHGX37rA0fBWVOtY8WBl2oqxoDQ/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <div id="page-links" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-links').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-links').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Links...</p></div>
+          <iframe id="iframe-links" src="https://script.google.com/a/macros/iopex.com/s/AKfycbxf7HdjRnpKsQF7pbmYEGaMfn1ttkP-fKNnmFKv8SyjPWQ-Y5OXykT3F-tfnpI563Fpcg/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <div id="page-lounge" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-lounge').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-lounge').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Lounge...</p></div>
+          <iframe id="iframe-lounge" src="https://script.google.com/a/macros/iopex.com/s/AKfycbzsslBf5nXFsEk6k8aJVncC_Kjk08hjVsutG1yEZlaQsY5-udGnoTMoKNGxwBBaaw5w/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <div id="page-focus" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-focus').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-focus').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Friendster...</p></div>
+          <iframe id="iframe-focus" src="https://script.google.com/a/macros/iopex.com/s/AKfycbzuf2LDFcOyOyzRNP58gT49RoA9C9uOa9qOIq-1kYGst66HYz-vVqmnbXRNZDC2IRJb/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <div id="page-gallery" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-gallery').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-gallery').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Gallery...</p></div>
+          <iframe id="iframe-gallery" src="https://script.google.com/a/macros/iopex.com/s/AKfycbzavQVlPeS_MYwwRhFqsFradqKE9fPYuNwADtP8J1CKVvzZcQnZeMmU0KH1kF_KgrdosA/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <div id="page-performance" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-performance').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-performance').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading My Performance...</p></div>
+          <iframe id="iframe-performance" src="https://script.google.com/a/macros/iopex.com/s/AKfycbz59WqFcTtE5vYad06VNGL2YavjaPgFhshU-S9BSeHS8h4k2KyO7UDE7TIafuyuJ2c1KA/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+      <div id="page-snippets" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-snippets').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-snippets').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Snippets...</p></div>
+          <iframe id="iframe-snippets" src="https://script.google.com/a/macros/iopex.com/s/AKfycbwQUQxwwTkH-He9IWAFstk7BB2WHBvonzmzqT9P2bIKBeUdmnNief-6w5DzQY8AkRAMXw/exec" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+      
+      <!-- ARTICLE MODERATION PAGE -->
+      <div id="page-article" class="main-page" style="width: 100%; height: 100%; position: relative;">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-article').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-article').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper" style="width: 100%; height: 100%; position: relative; background: var(--surface);">
+          <div class="iframe-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--secondary); font-weight: 600;"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading Article Moderation...</p></div>
+          <iframe id="iframe-article" src="https://script.google.com/a/macros/iopex.com/s/AKfycbwbWi2EVygrXLYBHLFu5hav73_1wDeC7aHljBJ_j-655WOqXUK4tGALaIiWsKW8p_XY/exec" style="width: 100%; height: 100%; border: none; display: block; position: relative; z-index: 2;" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+      
+      <!-- Soon to Open PAGE (New) -->
+      <div id="page-team" class="main-page">
+        <div class="iframe-actions">
+          <button class="sub-nav-btn" onclick="document.getElementById('iframe-team').requestFullscreen()"><i data-lucide="maximize"></i></button>
+          <button class="sub-nav-btn" onclick="window.open(document.getElementById('iframe-team').src, '_blank')"><i data-lucide="external-link"></i></button>
+        </div>
+        <div class="iframe-wrapper">
+          <div class="iframe-spinner"><i data-lucide="loader-2" class="spin" style="width: 40px; height: 40px;"></i><p>Loading The Farm Game...</p></div>
+          <!-- INSERT YOUR TEAM WEB APP LINK IN THE SRC ATTRIBUTE BELOW -->
+          <iframe id="iframe-team" src="" onload="this.previousElementSibling.style.display='none'"></iframe>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-circle' : 'info');
+      toast.innerHTML = `<i data-lucide="${icon}"></i> ${message}`;
+      container.appendChild(toast);
+      lucide.createIcons();
+      setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => toast.remove(), 300); }, 3500);
+    }
+
+    let modalCallback = null;
+    function openConfirmModal(msg, callback) {
+      document.getElementById('modalMessage').innerText = msg;
+      modalCallback = callback;
+      document.getElementById('customModal').style.display = 'flex';
+    }
+    function closeModal() { document.getElementById('customModal').style.display = 'none'; modalCallback = null; }
+    document.getElementById('modalConfirmBtn').addEventListener('click', () => {
+      if(modalCallback) modalCallback();
+      closeModal();
+    });
+
+    let employeeList = [];
+    let rawProdData = []; 
+    let isDashboardDataLoaded = false;
+    let globalSuperAdminStatus = false;
+    let dataTableInstance = null;
+    let apexComboChart = null;
+    let apexDonutChart = null;
+
+    window.onload = function() {
+      if(localStorage.getItem('sidebarCollapsed') === 'true') {
+        document.getElementById('sidebar').classList.add('collapsed');
+      }
+      google.script.run.withSuccessHandler(initializeData).getInitialData();
+    };
+
+    function initializeData(data) {
+      document.documentElement.style.setProperty('--bg-blur', data.settings.bgBlur + 'px');
+      document.documentElement.style.setProperty('--bg-opacity', data.settings.bgOpacity);
+      if(data.settings.bgUrl) document.body.style.backgroundImage = `url('${data.settings.bgUrl}')`;
+      
+      document.getElementById('bgUrlInput').value = data.settings.bgUrl;
+      document.getElementById('blurSlider').value = data.settings.bgBlur;
+      document.getElementById('opSlider').value = data.settings.bgOpacity;
+      document.getElementById('blurVal').innerText = data.settings.bgBlur;
+      document.getElementById('opVal').innerText = data.settings.bgOpacity;
+
+      globalSuperAdminStatus = (data.accessLevel === 'superadmin');
+
+      if (data.accessLevel === 'superadmin') {
+        document.getElementById('adminTabBtn').style.display = 'flex';
+        document.getElementById('adminAnnouncementControls').style.display = 'block';
+        document.getElementById('superAdminUncoachedWrapper').style.display = 'block'; 
+      } 
+      
+      // Removed nav-training hiding condition below
+      if (data.accessLevel === 'agent') {
+        document.getElementById('nav-coaching').style.display = 'none';
+        document.getElementById('nav-operations').style.display = 'none';
+      }
+
+      document.getElementById('userEmailDisplay').innerText = data.moderator.email;
+      document.getElementById('loginLoader').style.display = 'none';
+      document.getElementById('loginDetails').style.display = 'block';
+
+      employeeList = data.employees;
+      let opts = '<option value="">Select Employee...</option>';
+      employeeList.forEach(e => opts += `<option value="${e.empNumber}">${e.empNumber} - ${e.name}</option>`);
+      
+      document.getElementById('empNumberSelect').innerHTML = opts;
+      document.getElementById('scEmpSelect').innerHTML = opts;
+      document.getElementById('gsEmpSelect').innerHTML = opts;
+      document.getElementById('historyEmpSelect').innerHTML = opts;
+
+      document.getElementById('cBody').innerHTML = data.report.compliant.map(m => `<tr><td style="color:var(--success); font-weight:bold;">${m.name}</td><td>${m.count} logs</td></tr>`).join('');
+      document.getElementById('ncBody').innerHTML = data.report.nonCompliant.map(m => `<tr><td style="color:var(--brand-red); font-weight:bold;">${m.name}</td><td>${m.count} logs</td></tr>`).join('');
+      
+      document.getElementById('uncoachedBody').innerHTML = data.report.uncoachedAgents.length > 0 
+        ? data.report.uncoachedAgents.map(a => `<span style="background: #f1f5f9; padding: 5px 10px; border-radius: 6px; font-size: 0.9em; border: 1px solid var(--border);">${a}</span>`).join('') 
+        : `<span style="color: var(--success); font-weight: bold;">All agents have been coached!</span>`;
+      
+      renderAnnouncements(data);
+      initFormAutosave();
+      fetchExpandedDashboard();
+    }
+
+    function renderAnnouncements(data) {
+      const annGrid = document.getElementById('announcementGrid');
+      if (data.announcements && data.announcements.length > 0) {
+        annGrid.innerHTML = data.announcements.map((a, index) => `
+          <div style="background:var(--surface); border-radius:12px; overflow:hidden; border:1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.03); position:relative;">
+            ${globalSuperAdminStatus ? `<button onclick="deleteAnnouncementItem(${index})" style="position:absolute; top:10px; right:10px; background:rgba(220, 38, 38, 0.9); color:white; border:none; padding:8px; border-radius:8px; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;"><i data-lucide="trash-2" style="width:16px; height:16px;"></i></button>` : ''}
+            <img src="${a.url}" style="width:100%; height:300px; object-fit:cover; display:block; background:#f4f4f4;">
+            ${a.caption ? `<div style="padding:20px; font-weight:600; font-size:1.1em; color:var(--primary); text-align:center;">${a.caption}</div>` : ''}
+          </div>
+        `).join('');
+      } else {
+        annGrid.innerHTML = "<p style='color:var(--secondary); grid-column: 1 / -1;'>No announcements currently active.</p>";
+      }
+      lucide.createIcons();
+    }
+
+    function toggleNav() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('collapsed');
+      localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+    }
+
+    function toggleMulti(targetId, event) {
+      if(event) event.stopPropagation(); 
+      document.querySelectorAll('.checkboxes').forEach(box => {
+        if (box.id !== targetId) box.classList.remove('show');
+      });
+      const target = document.getElementById(targetId);
+      if(target) target.classList.toggle('show');
+    }
+
+    document.addEventListener('click', function(event) {
+      if (!event.target.closest('.multi-select')) {
+        document.querySelectorAll('.checkboxes').forEach(box => box.classList.remove('show'));
+      }
+    });
+
+    function enterApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'flex';
+      if(dataTableInstance) dataTableInstance.columns.adjust();
+      if(window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+    }
+
+    function switchMainPage(pageId, btnElement) {
+      document.querySelectorAll('.main-page').forEach(page => page.classList.remove('active-page'));
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active-page');
+      btnElement.classList.add('active');
+      
+      if(dataTableInstance && pageId === 'page-operations') dataTableInstance.columns.adjust();
+      if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+    }
+
+    function switchSubTab(tabId, btnElement) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.sub-nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btnElement.classList.add('active');
+    }
+    
+    function jumpToCoaching(empNumber) {
+      if (!empNumber) {
+        showToast("Employee Number not found for this agent.", "error");
+        return;
+      }
+      switchMainPage('page-coaching', document.getElementById('nav-coaching'));
+      switchSubTab('formTab', document.querySelector('.sub-nav-btn[onclick*="formTab"]'));
+      
+      const empSelect = document.getElementById('empNumberSelect');
+      empSelect.value = empNumber;
+      onEmployeeChange('empNumberSelect', 'agentEmailDisplay'); 
+      document.querySelector('select[name="behavior"]').value = "Productivity - Average Review Time";
+    }
+
+    // --- Dynamic Employee Selectors ---
+    function onEmployeeChange(selectId, displayId) {
+      const selected = document.getElementById(selectId).value;
+      const found = employeeList.find(e => e.empNumber === selected);
+      document.getElementById(displayId).value = found ? found.email : '';
+    }
+
+    function updateScorecardMetrics() {
+      const selectedEmp = document.getElementById('scEmpSelect').value;
+      const selectedMonthYear = document.getElementById('scMonthYear').value;
+      const found = employeeList.find(e => e.empNumber === selectedEmp);
+      
+      if(found) {
+        document.getElementById('scAgentEmail').value = found.email;
+        
+        let myData = rawProdData.filter(r => r.email === found.email);
+
+        if (selectedMonthYear) {
+          const [targetYearStr, targetMonthStr] = selectedMonthYear.split('-');
+          const targetYear = parseInt(targetYearStr, 10);
+          const targetMonth = parseInt(targetMonthStr, 10) - 1;
+
+          myData = myData.filter(r => {
+            if (!r.date) return false;
+            let d = new Date(r.date);
+            if (isNaN(d.getTime())) {
+                return r.date.includes(targetYearStr) && (r.date.startsWith(targetMonthStr) || r.date.includes('/' + targetMonthStr + '/'));
+            }
+            return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
+          });
+        }
+        
+        let totalProd = 0, totalAcc = 0, accCount = 0, totalRev = 0, revCount = 0;
+        myData.forEach(r => {
+          let p = parseFloat(r.prod) || 0;
+          let a = parseFloat(r.acc) || 0;
+          let rev = parseFloat(r.revTime) || 0;
+
+          totalProd += p; 
+          if (a > 0) { totalAcc += a; accCount++; }
+          if (rev > 0) { totalRev += rev; revCount++; }
+        });
+
+        let avgAcc = accCount > 0 ? (totalAcc / accCount).toFixed(2) : 0;
+        let avgRev = revCount > 0 ? (totalRev / revCount) : 0;
+        let mins = Math.floor(avgRev / 60).toString().padStart(2, '0');
+        let secs = Math.floor(avgRev % 60).toString().padStart(2, '0');
+
+        document.getElementById('scProd').value = totalProd > 0 ? totalProd.toLocaleString() : '0';
+        document.getElementById('scAcc').value = avgAcc > 0 ? avgAcc : '0';
+        document.getElementById('scRev').value = avgRev > 0 ? `${mins}:${secs}` : '00:00';
+      } else {
+        document.getElementById('scAgentEmail').value = '';
+        document.getElementById('scProd').value = '';
+        document.getElementById('scAcc').value = '';
+        document.getElementById('scRev').value = '';
+      }
+    }
+
+    function initFormAutosave() {
+      const formInputs = document.querySelectorAll('#coachingForm input, #coachingForm textarea, #coachingForm select');
+      const draft = JSON.parse(localStorage.getItem('coachingDraft'));
+      if (draft) {
+        formInputs.forEach(i => { if(draft[i.name] && !i.readonly) i.value = draft[i.name]; });
+        if(document.getElementById('empNumberSelect').value) onEmployeeChange('empNumberSelect', 'agentEmailDisplay'); 
+      }
+      formInputs.forEach(input => {
+        if(input.type === 'file') return;
+        input.addEventListener('input', () => {
+          const currentDraft = {};
+          formInputs.forEach(i => { if(i.name && i.type !== 'file') currentDraft[i.name] = i.value; });
+          localStorage.setItem('coachingDraft', JSON.stringify(currentDraft));
+        });
+      });
+    }
+
+    let filterTimeout;
+    function debouncedApplyFilters() { clearTimeout(filterTimeout); filterTimeout = setTimeout(applyFilters, 300); }
+
+    function forceRefreshData() {
+      showToast('Syncing fresh data from server...', 'info');
+      sessionStorage.removeItem('newsbreakDashboardData');
+      isDashboardDataLoaded = false;
+      document.getElementById('comboChartDiv').innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+      lucide.createIcons();
+      fetchExpandedDashboard();
+    }
+
+    function fetchExpandedDashboard() {
+      if(isDashboardDataLoaded) return;
+      
+      const cachedData = sessionStorage.getItem('newsbreakDashboardData');
+      if (cachedData) {
+        processDashboardData(JSON.parse(cachedData));
+        return;
+      }
+
+      google.script.run.withSuccessHandler(function(data) {
+        sessionStorage.setItem('newsbreakDashboardData', JSON.stringify(data));
+        processDashboardData(data);
+        showToast('Data synced successfully', 'success');
+      }).withFailureHandler(e => showToast("Failed to fetch data: " + e.message, 'error')).getExpandedDashboardData();
+    }
+
+    function processDashboardData(data) {
+      isDashboardDataLoaded = true;
+      rawProdData = data.prodRows; 
+
+      let uniqueDates = [...new Set(rawProdData.map(item => item.date))].filter(Boolean);
+      let uniqueLOBs = [...new Set(rawProdData.map(item => item.role))].filter(Boolean);
+      let uniqueAgents = [...new Set(rawProdData.map(item => item.email))].filter(Boolean);
+
+      document.getElementById('filterDateBoxes').innerHTML = uniqueDates.map(d => `<label><input type="checkbox" value="${d}" onchange="debouncedApplyFilters()"> ${d}</label>`).join('');
+      document.getElementById('filterLOBBoxes').innerHTML = uniqueLOBs.map(l => `<label><input type="checkbox" value="${l}" onchange="debouncedApplyFilters()"> ${l}</label>`).join('');
+      document.getElementById('filterAgent').innerHTML = '<option value="ALL">All Agents</option>' + uniqueAgents.map(a => {
+        let emp = employeeList.find(e => e.email === a);
+        return `<option value="${a}">${emp ? emp.name : a}</option>`;
+      }).join('');
+
+      applyFilters();
+      renderTopPerformersHome(); 
+      document.getElementById('trainingContent').innerHTML = `<i data-lucide="network" style="width: 40px; height: 40px; color:var(--primary);"></i><p>${data.trainingData}</p>`;
+      lucide.createIcons();
+    }
+
+    function renderTopPerformersHome() {
+      if(rawProdData.length === 0) return document.getElementById('topModsGrid').innerHTML = '<p>No performance data available.</p>';
+      
+      let uniqueDates = [...new Set(rawProdData.map(item => item.date))].filter(Boolean);
+      let latestDate = uniqueDates.sort((a, b) => new Date(b) - new Date(a))[0];
+      
+      let latestData = rawProdData.filter(r => r.date === latestDate);
+      let lobMap = {};
+
+      latestData.forEach(r => {
+        if(!r.role) return;
+        if(!lobMap[r.role]) lobMap[r.role] = [];
+        let emp = employeeList.find(e => e.email === r.email);
+        lobMap[r.role].push({ name: emp ? emp.name : r.email, pph: r.pph || 0, acc: r.acc });
+      });
+
+      let gridHtml = '';
+      for (const [lob, agents] of Object.entries(lobMap)) {
+        agents.sort((a, b) => b.pph - a.pph || b.acc - a.acc);
+        let top3 = agents.slice(0, 3);
+        gridHtml += `
+          <div class="kpi-card" style="border-left:none; border-top: 4px solid var(--primary);">
+            <h4 style="margin: 0 0 15px 0; color: var(--primary); display:flex; justify-content:space-between;">${lob} <span style="font-size:0.7em; background:#f1f5f9; padding:4px 8px; border-radius:4px; font-weight:normal;">${latestDate}</span></h4>
+            <table style="margin-top:0; border:none; box-shadow:none;">
+              <thead><tr><th style="background:transparent; padding:5px 0;">Agent</th><th style="background:transparent; padding:5px 0;">PPH</th><th style="background:transparent; padding:5px 0;">Acc</th></tr></thead>
+              <tbody>
+                ${top3.map((a, i) => `<tr><td style="padding:8px 0; border:none; color:var(--secondary);"><b>${i+1}.</b>${a.name}</td><td style="padding:8px 0; border:none; color:var(--success); font-weight:bold;">${a.pph.toFixed(2)}</td><td style="padding:8px 0; border:none;">${a.acc.toFixed(1)}%</td></tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+      document.getElementById('topModsGrid').innerHTML = gridHtml || '<p>No matching data found for latest date.</p>';
+    }
+
+    function applyFilters() {
+      let dateBoxes = Array.from(document.querySelectorAll('#filterDateBoxes input:checked')).map(cb => cb.value);
+      let lobBoxes = Array.from(document.querySelectorAll('#filterLOBBoxes input:checked')).map(cb => cb.value);
+      let selectedAgent = document.getElementById('filterAgent').value;
+
+      document.getElementById('label-date').innerHTML = `<i data-lucide="calendar"></i> ` + (dateBoxes.length > 0 ? `${dateBoxes.length} Selected` : 'All Dates');
+      document.getElementById('label-lob').innerHTML = `<i data-lucide="layers"></i> ` + (lobBoxes.length > 0 ? `${lobBoxes.length} Selected` : 'All LOBs');
+      lucide.createIcons();
+
+      let filtered = rawProdData.filter(row => {
+        let matchDate = (dateBoxes.length === 0 || dateBoxes.includes(row.date));
+        let matchLOB = (lobBoxes.length === 0 || lobBoxes.includes(row.role));
+        let matchAgent = (selectedAgent === 'ALL' || row.email === selectedAgent);
+        return matchDate && matchLOB && matchAgent;
+      });
+
+      let totalProd = 0, totalAcc = 0, accCount = 0, totalAttain = 0, attainCount = 0, totalRevSec = 0, revCount = 0;
+      let agentMap = {}; let roleMap = {};
+
+      filtered.forEach(r => {
+        totalProd += r.prod; 
+        if (r.acc > 0) { totalAcc += r.acc; accCount++; }
+        if (r.attain > 0) { totalAttain += r.attain; attainCount++; }
+        if (r.revTime > 0) { totalRevSec += r.revTime; revCount++; }
+
+        if (!agentMap[r.email]) { 
+          let emp = employeeList.find(e => e.email === r.email);
+          agentMap[r.email] = { name: emp ? emp.name : r.email, prod: 0, target: 0, accSum: 0, accCount: 0, revTimeSum: 0, revCount: 0, empNumber: emp ? emp.empNumber : '' }; 
+        }
+        agentMap[r.email].prod += r.prod; agentMap[r.email].target += r.target;
+        if (r.acc > 0) { agentMap[r.email].accSum += r.acc; agentMap[r.email].accCount++; }
+        if (r.revTime > 0) { agentMap[r.email].revTimeSum += r.revTime; agentMap[r.email].revCount++; }
+        if (r.role) { roleMap[r.role] = (roleMap[r.role] || 0) + 1; }
+      });
+
+      let avgAcc = accCount > 0 ? (totalAcc / accCount) : 0;
+      let avgEff = attainCount > 0 ? (totalAttain / attainCount) : 0;
+      let avgRev = revCount > 0 ? (totalRevSec / revCount) : 0;
+
+      let hrs = Math.floor(avgRev / 3600).toString().padStart(2, '0');
+      let mins = Math.floor((avgRev % 3600) / 60).toString().padStart(2, '0');
+      let secs = Math.floor(avgRev % 60).toString().padStart(2, '0');
+      
+      document.getElementById('kpi-handled').innerText = totalProd > 0 ? totalProd.toLocaleString() : "--";
+      document.getElementById('kpi-accuracy').innerText = totalProd > 0 ? avgAcc.toFixed(2) + "%" : "--%";
+      document.getElementById('kpi-efficiency').innerText = totalProd > 0 ? avgEff.toFixed(2) + "%" : "--%";
+      document.getElementById('kpi-revtime').innerText = totalProd > 0 ? `${hrs}:${mins}:${secs}` : "00:00:00";
+
+      let agentArr = Object.values(agentMap).map(a => ({
+        name: a.name, prod: a.prod, target: a.target, 
+        acc: a.accCount > 0 ? a.accSum / a.accCount : 0,
+        avgRevTime: a.revCount > 0 ? a.revTimeSum / a.revCount : 0,
+        empNumber: a.empNumber
+      })).sort((a,b) => b.prod - a.prod);
+
+      updateDataTables(agentArr);
+      updateApexCharts(agentArr, Object.entries(roleMap));
+    }
+
+    function updateDataTables(agentArr) {
+      const dataSet = agentArr.map(a => {
+        let revMins = Math.floor(a.avgRevTime / 60).toString().padStart(2, '0');
+        let revSecs = Math.floor(a.avgRevTime % 60).toString().padStart(2, '0');
+        let revStr = `${revMins}:${revSecs}`;
+        
+        let isAtRisk = a.avgRevTime > 60;
+        let statusHtml = isAtRisk 
+          ? '<span style="color:var(--brand-red); font-weight:600;"><i data-lucide="alert-triangle" style="width:14px;height:14px;vertical-align:middle;"></i> At Risk</span>'
+          : '<span style="color:var(--success); font-weight:600;"><i data-lucide="check-circle" style="width:14px;height:14px;vertical-align:middle;"></i> Stable</span>';
+          
+        let actionBtn = isAtRisk
+          ? `<button class="btn btn-primary" style="padding: 6px 12px; margin: 0; font-size: 0.85em; width: auto;" onclick="jumpToCoaching('${a.empNumber}')"><i data-lucide="pen-tool" style="width:14px; height:14px;"></i> Log Coaching</button>`
+          : '<span style="color: var(--secondary); font-size: 0.9em;">-</span>';
+
+        return [a.name, a.acc.toFixed(2) + '%', revStr, statusHtml, actionBtn];
+      });
+
+      if (dataTableInstance) {
+        dataTableInstance.clear().rows.add(dataSet).draw();
+      } else {
+        dataTableInstance = $('#performanceDataTable').DataTable({
+          data: dataSet, dom: 'Bfrtip', buttons: ['copy', 'csv', 'excel'],
+          pageLength: 5, lengthMenu: [5, 10, 25, 50],
+          drawCallback: function() { lucide.createIcons(); }
+        });
+      }
+      lucide.createIcons();
+    }
+
+    function updateApexCharts(agentArr, roleArr) {
+      document.getElementById('comboChartDiv').innerHTML = '';
+      document.getElementById('donutChartDiv').innerHTML = '';
+
+      if (roleArr.length > 0) {
+        let labels = roleArr.map(r => r[0]); let series = roleArr.map(r => r[1]);
+        let donutOptions = {
+          series: series, labels: labels, chart: { type: 'donut', height: 280, fontFamily: 'Inter, sans-serif' },
+          colors: ['#0f172a', '#3b82f6', '#10b981', '#f59e0b', '#dc2626'],
+          legend: { position: 'bottom' }, dataLabels: { enabled: true }
+        };
+        apexDonutChart = new ApexCharts(document.getElementById("donutChartDiv"), donutOptions);
+        apexDonutChart.render();
+      } else { document.getElementById('donutChartDiv').innerHTML = '<p style="text-align:center; padding-top:50px;">No LOB data matches filter.</p>'; }
+
+      if (agentArr.length > 0) {
+        let top10 = agentArr.slice(0, 10);
+        let names = top10.map(a => a.name); let volumes = top10.map(a => a.prod); let accuracies = top10.map(a => parseFloat(a.acc.toFixed(2)));
+
+        let comboOptions = {
+          series: [{ name: 'Total Volume', type: 'column', data: volumes }, { name: 'Accuracy %', type: 'line', data: accuracies }],
+          chart: { height: 280, type: 'line', fontFamily: 'Inter, sans-serif', toolbar: { show: false } },
+          stroke: { width: [0, 3] }, colors: ['#94a3b8', '#0f172a'],
+          dataLabels: { enabled: true, enabledOnSeries: [1] }, labels: names,
+          annotations: {
+            yaxis: [{
+              y: 95, borderColor: '#10b981', strokeDashArray: 4,
+              label: { borderColor: '#10b981', style: { color: '#fff', background: '#10b981', fontWeight: 600 }, text: 'Target 95%' }
+            }]
+          },
+          yaxis: [{ title: { text: 'Volume' } }, { opposite: true, title: { text: 'Accuracy %' }, max: 100 }]
+        };
+        apexComboChart = new ApexCharts(document.getElementById("comboChartDiv"), comboOptions);
+        apexComboChart.render();
+      } else { document.getElementById('comboChartDiv').innerHTML = '<p style="text-align:center; padding-top:50px;">No volume data matches filter.</p>'; }
+    }
+
+    // --- Actions ---
+    function addAnnouncement() {
+      const url = document.getElementById('newAnnounceImg').value;
+      const caption = document.getElementById('newAnnounceText').value;
+      if (!url) return showToast("Please provide an image URL", 'error');
+      
+      showToast('Posting announcement...', 'info');
+      google.script.run.withSuccessHandler(() => { 
+        showToast("Announcement Posted Successfully!", 'success'); 
+        sessionStorage.removeItem('newsbreakDashboardData'); 
+        setTimeout(() => location.reload(), 1500); 
+      }).withFailureHandler(e => showToast(e.message, 'error')).saveAnnouncement(url, caption);
+    }
+    
+    function deleteAnnouncementItem(index) {
+      openConfirmModal("Are you sure you want to delete this announcement? This cannot be undone.", () => {
+        showToast('Deleting...', 'info');
+        google.script.run.withSuccessHandler((res) => { 
+          showToast(res, 'success'); 
+          sessionStorage.removeItem('newsbreakDashboardData'); 
+          setTimeout(() => location.reload(), 1500); 
+        }).withFailureHandler(e => showToast(e.message, 'error')).deleteAnnouncement(index);
+      });
+    }
+    
+    function loadHistory() {
+      const emp = document.getElementById('historyEmpSelect').value;
+      const tbody = document.getElementById('historyTableBody');
+      if(!emp) return tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Select an agent above.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;"><i data-lucide="loader-2" class="spin"></i> Loading records...</td></tr>';
+      lucide.createIcons();
+      google.script.run.withSuccessHandler(function(history) {
+        if(history.length === 0) return tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No previous records found.</td></tr>';
+        tbody.innerHTML = history.map(h => `<tr><td>${h.date}</td><td>${h.mod}</td><td>${h.behavior}</td><td><b>${h.status}</b></td></tr>`).join('');
+      }).withFailureHandler(e => showToast(e.message, 'error')).getAgentHistory(emp);
+    }
+    
+    function formOverlay(show) {
+      document.querySelectorAll('.tab-content .btn-primary').forEach(b => b.style.display = show ? 'none' : 'inline-flex');
+      document.getElementById('loader').style.display = show ? 'block' : 'none';
+      if(!show) document.getElementById('successMessage').style.display = 'block';
+    }
+
+    // 1. Submit Initial Action Plan
+    function submitForm(event) {
+      event.preventDefault();
+      formOverlay(true);
+      const form = document.getElementById('coachingForm');
+      const fileInput = document.getElementById('attachmentInput');
+      const data = {
+        coachingDateTime: form.coachingDateTime.value, empNumber: form.empNumber.value, 
+        managerEmail: form.managerEmail.value, behavior: form.behavior.value, 
+        rca: form.rca.value, baseline: form.baseline.value, target: form.target.value,
+        actionPlan: form.actionPlan.value, support: form.support.value, timeline: form.timeline.value
+      };
+
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          data.fileName = file.name; data.fileMimeType = file.type; data.fileContent = e.target.result.split(',')[1];
+          google.script.run.withSuccessHandler(finalizeSuccess).withFailureHandler(finalizeError).processCoaching(data);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        google.script.run.withSuccessHandler(finalizeSuccess).withFailureHandler(finalizeError).processCoaching(data);
+      }
+    }
+
+    // 2. Submit Scorecard
+    function submitScorecard(event) {
+      event.preventDefault();
+      formOverlay(true);
+      const empSelect = document.getElementById('scEmpSelect');
+      const data = {
+        agentName: empSelect.options[empSelect.selectedIndex].text.split(' - ')[1],
+        agentEmail: document.getElementById('scAgentEmail').value,
+        managerEmail: document.getElementById('scManagerEmail').value,
+        monthYear: document.getElementById('scMonthYear').value,
+        prod: document.getElementById('scProd').value,
+        acc: document.getElementById('scAcc').value,
+        revTime: document.getElementById('scRev').value,
+        notes: document.getElementById('scNotes').value
+      };
+      google.script.run.withSuccessHandler(finalizeSuccess).withFailureHandler(finalizeError).processScorecard(data);
+    }
+
+    // 3. Submit Goal Setting
+    function submitGoal(event) {
+      event.preventDefault();
+      formOverlay(true);
+      const empSelect = document.getElementById('gsEmpSelect');
+      const data = {
+        agentName: empSelect.options[empSelect.selectedIndex].text.split(' - ')[1],
+        agentEmail: document.getElementById('gsAgentEmail').value,
+        managerEmail: document.getElementById('gsManagerEmail').value,
+        monthYear: document.getElementById('gsMonthYear').value,
+        accTarget: document.getElementById('gsAcc').value,
+        prodTarget: document.getElementById('gsProd').value,
+        revTarget: document.getElementById('gsRev').value,
+        attTarget: document.getElementById('gsAtt').value,
+        pktTarget: document.getElementById('gsPkt').value,
+        escTarget: document.getElementById('gsEsc').value,
+        notes: document.getElementById('gsNotes').value
+      };
+      google.script.run.withSuccessHandler(finalizeSuccess).withFailureHandler(finalizeError).processGoalSetting(data);
+    }
+
+    function finalizeSuccess(res) {
+      document.getElementById('formContainer').style.display = 'none';
+      document.getElementById('scorecardFormContainer').style.display = 'none';
+      document.getElementById('goalFormContainer').style.display = 'none';
+      document.getElementById('successText').innerText = res;
+      formOverlay(false);
+      localStorage.removeItem('coachingDraft'); 
+      document.getElementById('coachingForm').reset();
+      document.getElementById('scorecardForm').reset();
+      document.getElementById('goalForm').reset();
+    }
+
+    function finalizeError(e) {
+      showToast(e.message, 'error');
+      document.querySelectorAll('.tab-content .btn-primary').forEach(b => b.style.display = 'inline-flex');
+      document.getElementById('loader').style.display = 'none';
+    }
+    
+    function resetAllForms() {
+      document.getElementById('successMessage').style.display = 'none';
+      document.getElementById('formContainer').style.display = 'block';
+      document.getElementById('scorecardFormContainer').style.display = 'block';
+      document.getElementById('goalFormContainer').style.display = 'block';
+      document.querySelectorAll('.tab-content .btn-primary').forEach(b => b.style.display = 'inline-flex');
+    }
+    
+    function updateLivePreview() {
+      const b = document.getElementById('blurSlider').value;
+      const o = document.getElementById('opSlider').value;
+      document.documentElement.style.setProperty('--bg-blur', b + 'px');
+      document.documentElement.style.setProperty('--bg-opacity', o);
+      document.getElementById('blurVal').innerText = b;
+      document.getElementById('opVal').innerText = o;
+    }
+    
+    function saveAdmin() {
+      const b = document.getElementById('blurSlider').value;
+      const o = document.getElementById('opSlider').value;
+      showToast('Saving admin settings...', 'info');
+      google.script.run.withSuccessHandler(msg => showToast(msg, 'success')).withFailureHandler(e => showToast(e.message, 'error')).saveAdminSettings(b, o);
+    }
+    
+    function applyUrlBg() {
+      const url = document.getElementById('bgUrlInput').value.trim();
+      if (!url) return showToast("Please paste a valid image URL first.", 'error');
+      document.body.style.backgroundImage = `url('${url}')`;
+      showToast('Applying background...', 'info');
+      google.script.run.withSuccessHandler(() => showToast("Background saved successfully!", 'success')).withFailureHandler(e => showToast(e.message, 'error')).saveBackgroundUrl(url);
+    }
+  </script>
+<? } ?>
+</body>
+</html>
